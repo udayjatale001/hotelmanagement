@@ -1,9 +1,10 @@
+
 "use client";
 
 import React, { useState, useEffect } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, addDoc, doc, updateDoc, increment } from "firebase/firestore";
+import { collection, onSnapshot, addDoc, doc, updateDoc, increment, serverTimestamp } from "firebase/firestore";
 import { generateBillingNote } from "@/ai/flows/generate-billing-note";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Plus, Trash2, Sparkles, Receipt, Printer } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
+import { useAuth } from "@/lib/auth-store";
 
 export default function BillingPage() {
   const [inventory, setInventory] = useState<any[]>([]);
@@ -25,6 +27,7 @@ export default function BillingPage() {
   const [currentSelection, setCurrentSelection] = useState<string | null>(null);
   const [currentQty, setCurrentQty] = useState(1);
   const { toast } = useToast();
+  const { userEmail } = useAuth();
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "inventory"), (snapshot) => {
@@ -38,8 +41,8 @@ export default function BillingPage() {
     const item = inventory.find(i => i.id === currentSelection);
     if (!item) return;
 
-    if (item.stock < currentQty) {
-      toast({ title: "Low Stock", description: `Only ${item.stock} units left for ${item.name}.`, variant: "destructive" });
+    if (item.currentStock < currentQty) {
+      toast({ title: "Low Stock", description: `Only ${item.currentStock} units left for ${item.itemName}.`, variant: "destructive" });
       return;
     }
 
@@ -65,7 +68,7 @@ export default function BillingPage() {
       const note = await generateBillingNote({
         tableNumber,
         totalAmount,
-        itemsPurchased: selectedItems.map(i => i.item.name),
+        itemsPurchased: selectedItems.map(i => i.item.itemName),
         date: new Date().toLocaleDateString()
       });
       setAiNote(note);
@@ -78,20 +81,21 @@ export default function BillingPage() {
 
   const handleFinalizeBill = async () => {
     try {
-      // 1. Create bill record
-      await addDoc(collection(db, "bills"), {
+      // 1. Create sale record in 'sales' collection
+      await addDoc(collection(db, "sales"), {
         tableNumber,
-        items: selectedItems.map(i => ({ name: i.item.name, qty: i.qty, price: i.item.price })),
-        total: totalAmount,
-        date: new Date().toISOString(),
+        itemsList: selectedItems.map(i => ({ itemName: i.item.itemName, qty: i.qty, price: i.item.price })),
+        totalAmount,
+        timestamp: serverTimestamp(),
+        adminEmail: userEmail,
         note: aiNote
       });
 
-      // 2. Deduct inventory
+      // 2. Automatically deduct from inventory
       for (const entry of selectedItems) {
         const itemRef = doc(db, "inventory", entry.item.id);
-        updateDoc(itemRef, {
-          stock: increment(-entry.qty)
+        await updateDoc(itemRef, {
+          currentStock: increment(-entry.qty)
         });
       }
 
@@ -134,8 +138,8 @@ export default function BillingPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {inventory.map(item => (
-                        <SelectItem key={item.id} value={item.id} disabled={item.stock === 0}>
-                          {item.name} (${item.price.toFixed(2)}) - {item.stock} left
+                        <SelectItem key={item.id} value={item.id} disabled={item.currentStock === 0}>
+                          {item.itemName} (${item.price.toFixed(2)}) - {item.currentStock} left
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -168,7 +172,7 @@ export default function BillingPage() {
                 <TableBody>
                   {selectedItems.map((entry, idx) => (
                     <TableRow key={idx}>
-                      <TableCell>{entry.item.name}</TableCell>
+                      <TableCell>{entry.item.itemName}</TableCell>
                       <TableCell>{entry.qty}</TableCell>
                       <TableCell>${entry.item.price.toFixed(2)}</TableCell>
                       <TableCell>${(entry.item.price * entry.qty).toFixed(2)}</TableCell>
@@ -227,7 +231,7 @@ export default function BillingPage() {
                 <span className="font-medium">${totalAmount.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Service Tax (0%):</span>
+                <span className="text-muted-foreground">Tax (0%):</span>
                 <span className="font-medium">$0.00</span>
               </div>
               <Separator />

@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth-store";
 
 const FOOD_ITEMS = [
   { name: "Kachori", price: 1.50, color: "bg-orange-500" },
@@ -24,6 +25,7 @@ export default function TokenPage() {
   const [recentTokens, setRecentTokens] = useState<any[]>([]);
   const [isGenerating, setIsGenerating] = useState<string | null>(null);
   const { toast } = useToast();
+  const { userEmail } = useAuth();
 
   useEffect(() => {
     const q = query(collection(db, "tokens"), orderBy("timestamp", "desc"), limit(10));
@@ -36,18 +38,19 @@ export default function TokenPage() {
   const generateToken = async (item: any) => {
     setIsGenerating(item.name);
     try {
-      const serial = `HH-${Math.floor(1000 + Math.random() * 9000)}-${Date.now().toString().slice(-4)}`;
+      const tokenId = `HH-${Math.floor(1000 + Math.random() * 9000)}-${Date.now().toString().slice(-4)}`;
       await addDoc(collection(db, "tokens"), {
         itemName: item.name,
         price: item.price,
-        serial,
+        tokenId,
         timestamp: serverTimestamp(),
+        adminEmail: userEmail,
         status: "generated"
       });
       
       toast({
         title: "Token Generated",
-        description: `Serial: ${serial} for ${item.name}`,
+        description: `Token: ${tokenId} for ${item.name}`,
         variant: "default"
       });
     } catch (err) {
@@ -109,7 +112,7 @@ export default function TokenPage() {
                 {recentTokens.map((token) => (
                   <div key={token.id} className="p-4 rounded-lg bg-secondary/30 border border-border/50 space-y-2">
                     <div className="flex justify-between items-center">
-                      <span className="text-xs font-bold text-primary px-2 py-0.5 bg-primary/10 rounded">{token.serial}</span>
+                      <span className="text-xs font-bold text-primary px-2 py-0.5 bg-primary/10 rounded">{token.tokenId}</span>
                       <span className="text-xs text-muted-foreground">
                         {token.timestamp?.toDate ? token.timestamp.toDate().toLocaleTimeString() : "Pending..."}
                       </span>

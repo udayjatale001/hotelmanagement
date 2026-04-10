@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -8,7 +9,6 @@ import { db } from "@/lib/firebase";
 import { 
   BarChart, 
   TrendingUp, 
-  Users, 
   PackageCheck,
   ArrowRight,
   Ticket,
@@ -19,22 +19,22 @@ import { Button } from "@/components/ui/button";
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
-    totalBills: 0,
+    totalSales: 0,
     totalRevenue: 0,
     inventoryCount: 0,
-    recentBills: [] as any[]
+    recentSales: [] as any[]
   });
 
   useEffect(() => {
-    // Real-time listener for bills
-    const qBills = query(collection(db, "bills"), orderBy("date", "desc"), limit(5));
-    const unsubBills = onSnapshot(qBills, (snapshot) => {
-      const billsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      const revenue = billsData.reduce((sum: number, bill: any) => sum + (bill.total || 0), 0);
+    // Real-time listener for sales
+    const qSales = query(collection(db, "sales"), orderBy("timestamp", "desc"), limit(5));
+    const unsubSales = onSnapshot(qSales, (snapshot) => {
+      const salesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const revenue = salesData.reduce((sum: number, sale: any) => sum + (sale.totalAmount || 0), 0);
       setStats(prev => ({ 
         ...prev, 
-        recentBills: billsData,
-        totalBills: snapshot.size,
+        recentSales: salesData,
+        totalSales: snapshot.size,
         totalRevenue: revenue
       }));
     });
@@ -45,7 +45,7 @@ export default function Dashboard() {
     });
 
     return () => {
-      unsubBills();
+      unsubSales();
       unsubInventory();
     };
   }, []);
@@ -58,7 +58,7 @@ export default function Dashboard() {
           <p className="text-muted-foreground mt-1">Here's a quick overview of HarmonyHost operations.</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <StatCard 
             title="Total Revenue" 
             value={`$${stats.totalRevenue.toFixed(2)}`} 
@@ -66,22 +66,16 @@ export default function Dashboard() {
             description="Recent sales period"
           />
           <StatCard 
-            title="Total Invoices" 
-            value={stats.totalBills.toString()} 
+            title="Total Sales" 
+            value={stats.totalSales.toString()} 
             icon={<BarChart className="h-6 w-6 text-accent" />}
-            description="Generated in total"
+            description="Bills finalized"
           />
           <StatCard 
             title="Active Inventory" 
             value={stats.inventoryCount.toString()} 
             icon={<PackageCheck className="h-6 w-6 text-primary" />}
             description="Items in stock"
-          />
-          <StatCard 
-            title="Occupancy" 
-            value="12/20" 
-            icon={<Users className="h-6 w-6 text-accent" />}
-            description="Tables/Rooms active"
           />
         </div>
 
@@ -97,16 +91,18 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {stats.recentBills.length === 0 ? (
+                {stats.recentSales.length === 0 ? (
                   <p className="text-muted-foreground text-center py-4">No recent transactions found.</p>
                 ) : (
-                  stats.recentBills.map((bill: any) => (
-                    <div key={bill.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-secondary/50 transition-colors">
+                  stats.recentSales.map((sale: any) => (
+                    <div key={sale.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-secondary/50 transition-colors">
                       <div className="space-y-1">
-                        <p className="font-medium text-sm">{bill.tableNumber || "No Table"}</p>
-                        <p className="text-xs text-muted-foreground">{new Date(bill.date).toLocaleDateString()}</p>
+                        <p className="font-medium text-sm">{sale.tableNumber || "No Table"}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {sale.timestamp?.toDate ? sale.timestamp.toDate().toLocaleDateString() : "Processing..."}
+                        </p>
                       </div>
-                      <p className="font-bold text-primary">${(bill.total || 0).toFixed(2)}</p>
+                      <p className="font-bold text-primary">${(sale.totalAmount || 0).toFixed(2)}</p>
                     </div>
                   ))
                 )}

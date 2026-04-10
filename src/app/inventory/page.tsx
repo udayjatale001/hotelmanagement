@@ -16,16 +16,17 @@ import { cn } from "@/lib/utils";
 
 interface InventoryItem {
   id: string;
-  name: string;
-  stock: number;
+  itemName: string;
+  initialStock: number;
+  currentStock: number;
   price: number;
 }
 
 export default function InventoryPage() {
   const [items, setItems] = useState<InventoryItem[]>([]);
-  const [newItem, setNewItem] = useState({ name: "", stock: 0, price: 0 });
+  const [newItem, setNewItem] = useState({ itemName: "", initialStock: 0, price: 0 });
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValues, setEditValues] = useState({ name: "", stock: 0, price: 0 });
+  const [editValues, setEditValues] = useState({ itemName: "", initialStock: 0, currentStock: 0, price: 0 });
   const { toast } = useToast();
 
   useEffect(() => {
@@ -40,9 +41,14 @@ export default function InventoryPage() {
     e.preventDefault();
     try {
       const id = Date.now().toString();
-      await setDoc(doc(db, "inventory", id), newItem);
-      setNewItem({ name: "", stock: 0, price: 0 });
-      toast({ title: "Item Added", description: `${newItem.name} added to inventory.` });
+      await setDoc(doc(db, "inventory", id), {
+        itemName: newItem.itemName,
+        initialStock: newItem.initialStock,
+        currentStock: newItem.initialStock,
+        price: newItem.price
+      });
+      setNewItem({ itemName: "", initialStock: 0, price: 0 });
+      toast({ title: "Item Added", description: `${newItem.itemName} added to inventory.` });
     } catch (err) {
       toast({ title: "Error", description: "Failed to add item.", variant: "destructive" });
     }
@@ -51,8 +57,8 @@ export default function InventoryPage() {
   const handleUpdateStock = async (id: string, delta: number) => {
     const item = items.find(i => i.id === id);
     if (!item) return;
-    const newStock = Math.max(0, item.stock + delta);
-    await updateDoc(doc(db, "inventory", id), { stock: newStock });
+    const newStock = Math.max(0, item.currentStock + delta);
+    await updateDoc(doc(db, "inventory", id), { currentStock: newStock });
   };
 
   const handleDelete = async (id: string) => {
@@ -64,7 +70,12 @@ export default function InventoryPage() {
 
   const startEdit = (item: InventoryItem) => {
     setEditingId(item.id);
-    setEditValues({ name: item.name, stock: item.stock, price: item.price });
+    setEditValues({ 
+      itemName: item.itemName, 
+      initialStock: item.initialStock, 
+      currentStock: item.currentStock,
+      price: item.price 
+    });
   };
 
   const saveEdit = async () => {
@@ -87,8 +98,8 @@ export default function InventoryPage() {
                 <div className="space-y-2">
                   <Label>Item Name</Label>
                   <Input 
-                    value={newItem.name} 
-                    onChange={(e) => setNewItem({...newItem, name: e.target.value})}
+                    value={newItem.itemName} 
+                    onChange={(e) => setNewItem({...newItem, itemName: e.target.value})}
                     placeholder="e.g. Bisleri 1L"
                     required
                   />
@@ -98,8 +109,8 @@ export default function InventoryPage() {
                     <Label>Initial Stock</Label>
                     <Input 
                       type="number"
-                      value={newItem.stock} 
-                      onChange={(e) => setNewItem({...newItem, stock: Number(e.target.value)})}
+                      value={newItem.initialStock} 
+                      onChange={(e) => setNewItem({...newItem, initialStock: Number(e.target.value)})}
                       required
                     />
                   </div>
@@ -138,8 +149,8 @@ export default function InventoryPage() {
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">
                         {editingId === item.id ? (
-                          <Input value={editValues.name} onChange={e => setEditValues({...editValues, name: e.target.value})} />
-                        ) : item.name}
+                          <Input value={editValues.itemName} onChange={e => setEditValues({...editValues, itemName: e.target.value})} />
+                        ) : item.itemName}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -152,12 +163,12 @@ export default function InventoryPage() {
                             <Minus className="h-3 w-3" />
                           </Button>
                           {editingId === item.id ? (
-                            <Input type="number" className="w-16 h-8" value={editValues.stock} onChange={e => setEditValues({...editValues, stock: Number(e.target.value)})} />
+                            <Input type="number" className="w-16 h-8" value={editValues.currentStock} onChange={e => setEditValues({...editValues, currentStock: Number(e.target.value)})} />
                           ) : (
                             <span className={cn(
                               "font-bold",
-                              item.stock < 10 ? "text-destructive" : "text-primary"
-                            )}>{item.stock}</span>
+                              item.currentStock < 10 ? "text-destructive" : "text-primary"
+                            )}>{item.currentStock}</span>
                           )}
                           <Button 
                             variant="outline" 
