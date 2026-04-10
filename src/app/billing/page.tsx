@@ -121,7 +121,7 @@ export default function BillingPage() {
                   id="tableNo" 
                   value={tableNumber} 
                   onChange={(e) => setTableNumber(e.target.value)} 
-                  placeholder="e.g. Table 01 or Room 101"
+                  placeholder="e.g. Table 01"
                 />
               </div>
 
