@@ -1,0 +1,17 @@
+
+{
+  "placeholderImages": [
+    {
+      "id": "hotel-hero",
+      "description": "Professional hotel lobby",
+      "imageUrl": "https://picsum.photos/seed/hotel1/1200/600",
+      "imageHint": "hotel lobby"
+    },
+    {
+      "id": "food-kachori",
+      "description": "Indian snack kachori",
+      "imageUrl": "https://picsum.photos/seed/kachori/400/300",
+      "imageHint": "indian snack"
+    }
+  ]
+}
