@@ -1,7 +1,7 @@
 
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { 
@@ -29,12 +29,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, logout } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
 
-  if (isAuthenticated === false) {
-    router.push("/login");
+  useEffect(() => {
+    if (isAuthenticated === false) {
+      router.push("/login");
+    }
+  }, [isAuthenticated, router]);
+
+  if (isAuthenticated !== true) {
     return null;
   }
-
-  if (isAuthenticated === null) return null;
 
   return (
     <div className="flex h-screen bg-background overflow-hidden font-body">
