@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -19,7 +18,7 @@ import { Separator } from "@/components/ui/separator";
 
 export default function BillingPage() {
   const [inventory, setInventory] = useState<any[]>([]);
-  const [customerName, setCustomerName] = useState("");
+  const [tableNumber, setTableNumber] = useState("");
   const [selectedItems, setSelectedItems] = useState<{item: any, qty: number}[]>([]);
   const [aiNote, setAiNote] = useState("");
   const [isGeneratingNote, setIsGeneratingNote] = useState(false);
@@ -56,15 +55,15 @@ export default function BillingPage() {
   const totalAmount = selectedItems.reduce((sum, entry) => sum + (entry.item.price * entry.qty), 0);
 
   const handleGenerateAINote = async () => {
-    if (!customerName || selectedItems.length === 0) {
-      toast({ title: "Details Missing", description: "Please enter customer name and add items.", variant: "destructive" });
+    if (!tableNumber || selectedItems.length === 0) {
+      toast({ title: "Details Missing", description: "Please enter table no. and add items.", variant: "destructive" });
       return;
     }
 
     setIsGeneratingNote(true);
     try {
       const note = await generateBillingNote({
-        customerName,
+        tableNumber,
         totalAmount,
         itemsPurchased: selectedItems.map(i => i.item.name),
         date: new Date().toLocaleDateString()
@@ -81,7 +80,7 @@ export default function BillingPage() {
     try {
       // 1. Create bill record
       await addDoc(collection(db, "bills"), {
-        customerName,
+        tableNumber,
         items: selectedItems.map(i => ({ name: i.item.name, qty: i.qty, price: i.item.price })),
         total: totalAmount,
         date: new Date().toISOString(),
@@ -99,7 +98,7 @@ export default function BillingPage() {
       toast({ title: "Bill Finalized", description: "Transaction saved and inventory updated." });
       
       // Reset
-      setCustomerName("");
+      setTableNumber("");
       setSelectedItems([]);
       setAiNote("");
     } catch (err) {
@@ -113,16 +112,16 @@ export default function BillingPage() {
         <div className="lg:col-span-2 space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Customer Details & Items</CardTitle>
+              <CardTitle>Order Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="custName">Customer Name</Label>
+                <Label htmlFor="tableNo">Table No.</Label>
                 <Input 
-                  id="custName" 
-                  value={customerName} 
-                  onChange={(e) => setCustomerName(e.target.value)} 
-                  placeholder="Guest Name"
+                  id="tableNo" 
+                  value={tableNumber} 
+                  onChange={(e) => setTableNumber(e.target.value)} 
+                  placeholder="e.g. Table 01 or Room 101"
                 />
               </div>
 
@@ -193,13 +192,13 @@ export default function BillingPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-accent" /> Personalized Guest Note
+                <Sparkles className="h-4 w-4 text-accent" /> Personalized Table Note
               </CardTitle>
               <Button 
                 variant="outline" 
                 size="sm" 
                 onClick={handleGenerateAINote}
-                disabled={isGeneratingNote || !customerName || selectedItems.length === 0}
+                disabled={isGeneratingNote || !tableNumber || selectedItems.length === 0}
               >
                 {isGeneratingNote ? "Thinking..." : "Generate with AI"}
               </Button>

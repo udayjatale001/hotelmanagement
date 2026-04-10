@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -79,10 +78,10 @@ export default function Dashboard() {
             description="Items in stock"
           />
           <StatCard 
-            title="Customer Base" 
-            value="124" 
+            title="Occupancy" 
+            value="12/20" 
             icon={<Users className="h-6 w-6 text-accent" />}
-            description="Returning guests"
+            description="Tables/Rooms active"
           />
         </div>
 
@@ -104,7 +103,7 @@ export default function Dashboard() {
                   stats.recentBills.map((bill: any) => (
                     <div key={bill.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-secondary/50 transition-colors">
                       <div className="space-y-1">
-                        <p className="font-medium text-sm">{bill.customerName}</p>
+                        <p className="font-medium text-sm">{bill.tableNumber || "No Table"}</p>
                         <p className="text-xs text-muted-foreground">{new Date(bill.date).toLocaleDateString()}</p>
                       </div>
                       <p className="font-bold text-primary">${(bill.total || 0).toFixed(2)}</p>

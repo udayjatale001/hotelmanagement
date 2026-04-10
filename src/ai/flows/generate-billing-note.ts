@@ -11,7 +11,7 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const GenerateBillingNoteInputSchema = z.object({
-  customerName: z.string().describe('The name of the customer.'),
+  tableNumber: z.string().describe('The table number or room number.'),
   totalAmount: z.number().describe('The total amount of the bill.'),
   itemsPurchased: z.array(z.string()).describe('A list of items purchased by the customer.'),
   date: z.string().describe('The date of the bill in a human-readable format (e.g., "January 1, 2024").'),
@@ -29,10 +29,10 @@ const prompt = ai.definePrompt({
   name: 'generateBillingNotePrompt',
   input: {schema: GenerateBillingNoteInputSchema},
   output: {schema: GenerateBillingNoteOutputSchema},
-  prompt: `You are an AI assistant tasked with generating a brief, polite, and customized closing note for a customer bill.
+  prompt: `You are an AI assistant tasked with generating a brief, polite, and customized closing note for a hotel restaurant bill.
 
 Use the following order details to craft the note:
-Customer Name: {{{customerName}}}
+Table/Room No: {{{tableNumber}}}
 Total Amount: {{{totalAmount}}}
 Items Purchased: {{#each itemsPurchased}}- {{{this}}}\n{{/each}}
 Date: {{{date}}}
@@ -40,7 +40,7 @@ Date: {{{date}}}
 The note should be appreciative, professional, and slightly personalized based on the details provided. Keep it concise, around 1-2 sentences.
 
 Example:
-"Thank you, Mr. Smith, for your purchase of $150.00 today! We hope you enjoy your new items and look forward to serving you again soon."
+"Thank you for dining at Table 12 today! We hope you enjoyed your meal and look forward to serving you again soon."
 
 Now, generate the closing note:`,
 });
