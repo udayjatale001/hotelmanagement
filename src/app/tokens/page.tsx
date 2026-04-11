@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy, limit } from "firebase/firestore";
+import { collection, onSnapshot, query, orderBy, limit } from "firebase/firestore";
 import { Ticket, History, Printer, CheckCircle2, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-store";
 import { errorEmitter, FirestorePermissionError, useFirebase } from "@/firebase";
+import { saveToken } from "@/firebase/db-service";
 
 const FOOD_ITEMS = [
   { name: "Kachori", price: 1.50, color: "bg-orange-500", description: "Hot & Crispy Rajasthani Style" },
@@ -35,44 +36,29 @@ export default function TokenPage() {
         setRecentTokens(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
       },
       async (err) => {
-        const permissionError = new FirestorePermissionError({
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: 'tokens',
           operation: 'list',
-        });
-        errorEmitter.emit('permission-error', permissionError);
+        }));
       }
     );
     return () => unsub();
   }, [db]);
 
-  const generateToken = async (item: any) => {
-    if (!db) return;
+  const handleGenerateToken = async (item: any) => {
+    if (!db || !userEmail) return;
     setIsGenerating(item.name);
     const tokenId = `HH-${Math.floor(1000 + Math.random() * 9000)}-${Date.now().toString().slice(-4)}`;
-    const data = {
-      itemName: item.name,
-      price: item.price,
-      tokenId,
-      timestamp: serverTimestamp(),
-      adminEmail: userEmail,
-      status: "generated"
-    };
-
-    addDoc(collection(db, "tokens"), data)
+    
+    saveToken(db, item, tokenId, userEmail)
       .then(() => {
         toast({
           title: "Token Generated",
           description: `Token: ${tokenId} for ${item.name}`,
-          variant: "default"
         });
       })
-      .catch(async (err) => {
-        const permissionError = new FirestorePermissionError({
-          path: 'tokens',
-          operation: 'create',
-          requestResourceData: data,
-        });
-        errorEmitter.emit('permission-error', permissionError);
+      .catch(() => {
+        // Error handled by global emitter in saveToken
       })
       .finally(() => {
         setIsGenerating(null);
@@ -111,7 +97,7 @@ export default function TokenPage() {
                   <p className="text-sm text-muted-foreground mb-6">{item.description}</p>
                   <Button 
                     className="w-full h-11 text-base font-semibold group-hover:shadow-lg transition-shadow" 
-                    onClick={() => generateToken(item)}
+                    onClick={() => handleGenerateToken(item)}
                     disabled={isGenerating === item.name}
                   >
                     {isGenerating === item.name ? "Generating..." : "Generate Token"}

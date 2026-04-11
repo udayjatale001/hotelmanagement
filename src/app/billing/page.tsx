@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import AppLayout from "@/components/layout/AppLayout";
-import { collection, onSnapshot, addDoc, doc, updateDoc, increment, serverTimestamp } from "firebase/firestore";
+import { collection, onSnapshot } from "firebase/firestore";
 import { generateBillingNote } from "@/ai/flows/generate-billing-note";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/lib/auth-store";
 import { errorEmitter, FirestorePermissionError, useFirebase } from "@/firebase";
+import { saveBill, updateStock } from "@/firebase/db-service";
 
 export default function BillingPage() {
   const { db } = useFirebase();
@@ -36,11 +37,10 @@ export default function BillingPage() {
         setInventory(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
       },
       async (err) => {
-        const permissionError = new FirestorePermissionError({
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: 'inventory',
           operation: 'list',
-        });
-        errorEmitter.emit('permission-error', permissionError);
+        }));
       }
     );
     return () => unsub();
@@ -69,7 +69,7 @@ export default function BillingPage() {
 
   const handleGenerateAINote = async () => {
     if (!tableNumber || selectedItems.length === 0) {
-      toast({ title: "Details Missing", description: "Please enter table no. and add items.", variant: "destructive" });
+      toast({ title: "Details Missing", description: "Please enter Table No. and add items.", variant: "destructive" });
       return;
     }
 
@@ -90,33 +90,21 @@ export default function BillingPage() {
   };
 
   const handleFinalizeBill = async () => {
-    if (!db) return;
+    if (!db || !userEmail) return;
 
     const saleData = {
       tableNumber,
       itemsList: selectedItems.map(i => ({ itemName: i.item.itemName, qty: i.qty, price: i.item.price })),
       totalAmount,
-      timestamp: serverTimestamp(),
       adminEmail: userEmail,
       note: aiNote
     };
 
-    // 1. Create sale record in 'sales' collection
-    addDoc(collection(db, "sales"), saleData)
+    saveBill(db, saleData)
       .then(() => {
-        // 2. Automatically deduct from inventory
+        // Automatically deduct from inventory
         for (const entry of selectedItems) {
-          const itemRef = doc(db, "inventory", entry.item.id);
-          updateDoc(itemRef, {
-            currentStock: increment(-entry.qty)
-          }).catch(async (err) => {
-            const permissionError = new FirestorePermissionError({
-              path: `inventory/${entry.item.id}`,
-              operation: 'update',
-              requestResourceData: { currentStock: 'decrement' },
-            });
-            errorEmitter.emit('permission-error', permissionError);
-          });
+          updateStock(db, entry.item.id, entry.qty);
         }
 
         toast({ title: "Bill Finalized", description: "Transaction saved and inventory updated." });
@@ -126,13 +114,8 @@ export default function BillingPage() {
         setSelectedItems([]);
         setAiNote("");
       })
-      .catch(async (err) => {
-        const permissionError = new FirestorePermissionError({
-          path: 'sales',
-          operation: 'create',
-          requestResourceData: saleData,
-        });
-        errorEmitter.emit('permission-error', permissionError);
+      .catch(() => {
+        // Error handled globally
       });
   };
 
@@ -225,7 +208,7 @@ export default function BillingPage() {
           <Card className="shadow-md">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-accent" /> Personalized Table Note
+                <Sparkles className="h-4 w-4 text-accent" /> Personalized Note
               </CardTitle>
               <Button 
                 variant="outline" 
