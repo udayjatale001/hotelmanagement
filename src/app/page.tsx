@@ -4,7 +4,6 @@ import React, { useEffect, useState } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { collection, query, onSnapshot, orderBy, limit } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { 
   BarChart, 
   TrendingUp, 
@@ -15,9 +14,10 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { errorEmitter, FirestorePermissionError } from "@/firebase";
+import { errorEmitter, FirestorePermissionError, useFirebase } from "@/firebase";
 
 export default function Dashboard() {
+  const { db } = useFirebase();
   const [stats, setStats] = useState({
     totalSales: 0,
     totalRevenue: 0,
@@ -26,6 +26,8 @@ export default function Dashboard() {
   });
 
   useEffect(() => {
+    if (!db) return;
+
     // Real-time listener for sales
     const qSales = query(collection(db, "sales"), orderBy("timestamp", "desc"), limit(5));
     const unsubSales = onSnapshot(qSales, 
@@ -66,7 +68,7 @@ export default function Dashboard() {
       unsubSales();
       unsubInventory();
     };
-  }, []);
+  }, [db]);
 
   return (
     <AppLayout>

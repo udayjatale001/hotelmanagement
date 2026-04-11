@@ -1,11 +1,9 @@
-
 "use client";
 
 import React, { useState, useEffect } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { db } from "@/lib/firebase";
 import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy, limit } from "firebase/firestore";
 import { Ticket, History, Printer, CheckCircle2, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -13,8 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-store";
-import { errorEmitter } from "@/firebase/error-emitter";
-import { FirestorePermissionError } from "@/firebase/errors";
+import { errorEmitter, FirestorePermissionError, useFirebase } from "@/firebase";
 
 const FOOD_ITEMS = [
   { name: "Kachori", price: 1.50, color: "bg-orange-500", description: "Hot & Crispy Rajasthani Style" },
@@ -24,12 +21,14 @@ const FOOD_ITEMS = [
 ];
 
 export default function TokenPage() {
+  const { db } = useFirebase();
   const [recentTokens, setRecentTokens] = useState<any[]>([]);
   const [isGenerating, setIsGenerating] = useState<string | null>(null);
   const { toast } = useToast();
   const { userEmail } = useAuth();
 
   useEffect(() => {
+    if (!db) return;
     const q = query(collection(db, "tokens"), orderBy("timestamp", "desc"), limit(10));
     const unsub = onSnapshot(q, 
       (snapshot) => {
@@ -44,9 +43,10 @@ export default function TokenPage() {
       }
     );
     return () => unsub();
-  }, []);
+  }, [db]);
 
   const generateToken = async (item: any) => {
+    if (!db) return;
     setIsGenerating(item.name);
     const tokenId = `HH-${Math.floor(1000 + Math.random() * 9000)}-${Date.now().toString().slice(-4)}`;
     const data = {

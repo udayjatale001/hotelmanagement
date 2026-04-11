@@ -1,9 +1,7 @@
-
 "use client";
 
 import React, { useState, useEffect } from "react";
 import AppLayout from "@/components/layout/AppLayout";
-import { db } from "@/lib/firebase";
 import { collection, onSnapshot, addDoc, doc, updateDoc, increment, serverTimestamp } from "firebase/firestore";
 import { generateBillingNote } from "@/ai/flows/generate-billing-note";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
@@ -17,10 +15,10 @@ import { Plus, Trash2, Sparkles, Receipt, Printer } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/lib/auth-store";
-import { errorEmitter } from "@/firebase/error-emitter";
-import { FirestorePermissionError } from "@/firebase/errors";
+import { errorEmitter, FirestorePermissionError, useFirebase } from "@/firebase";
 
 export default function BillingPage() {
+  const { db } = useFirebase();
   const [inventory, setInventory] = useState<any[]>([]);
   const [tableNumber, setTableNumber] = useState("");
   const [selectedItems, setSelectedItems] = useState<{item: any, qty: number}[]>([]);
@@ -32,6 +30,7 @@ export default function BillingPage() {
   const { userEmail } = useAuth();
 
   useEffect(() => {
+    if (!db) return;
     const unsub = onSnapshot(collection(db, "inventory"), 
       (snapshot) => {
         setInventory(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -45,7 +44,7 @@ export default function BillingPage() {
       }
     );
     return () => unsub();
-  }, []);
+  }, [db]);
 
   const addItemToBill = () => {
     if (!currentSelection) return;
@@ -91,6 +90,8 @@ export default function BillingPage() {
   };
 
   const handleFinalizeBill = async () => {
+    if (!db) return;
+
     const saleData = {
       tableNumber,
       itemsList: selectedItems.map(i => ({ itemName: i.item.itemName, qty: i.qty, price: i.item.price })),
@@ -103,7 +104,7 @@ export default function BillingPage() {
     // 1. Create sale record in 'sales' collection
     addDoc(collection(db, "sales"), saleData)
       .then(() => {
-        // 2. Automatically deduct from inventory (Logic connected to Firebase)
+        // 2. Automatically deduct from inventory
         for (const entry of selectedItems) {
           const itemRef = doc(db, "inventory", entry.item.id);
           updateDoc(itemRef, {

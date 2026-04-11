@@ -16,11 +16,17 @@ export function initializeFirebase() {
     app = initializeApp(firebaseConfig);
   }
 
-  db = initializeFirestore(app, {
-    localCache: persistentLocalCache({
-      tabManager: persistentMultipleTabManager()
-    })
-  });
+  // Ensure Firestore is only initialized once with specific settings
+  try {
+    db = initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager()
+      })
+    });
+  } catch (e: any) {
+    // If already initialized, get the existing instance
+    db = getFirestore(app);
+  }
   
   auth = getAuth(app);
 
@@ -29,3 +35,4 @@ export function initializeFirebase() {
 
 export { errorEmitter } from './error-emitter';
 export { FirestorePermissionError } from './errors';
+export { useFirebase, FirebaseProvider } from './provider';

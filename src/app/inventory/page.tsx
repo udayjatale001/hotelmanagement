@@ -1,9 +1,7 @@
-
 "use client";
 
 import React, { useEffect, useState } from "react";
 import AppLayout from "@/components/layout/AppLayout";
-import { db } from "@/lib/firebase";
 import { collection, onSnapshot, doc, updateDoc, setDoc, deleteDoc } from "firebase/firestore";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -13,8 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Plus, Minus, Trash2, Edit2, Save, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { errorEmitter } from "@/firebase/error-emitter";
-import { FirestorePermissionError } from "@/firebase/errors";
+import { errorEmitter, FirestorePermissionError, useFirebase } from "@/firebase";
 
 interface InventoryItem {
   id: string;
@@ -25,6 +22,7 @@ interface InventoryItem {
 }
 
 export default function InventoryPage() {
+  const { db } = useFirebase();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [newItem, setNewItem] = useState({ itemName: "", initialStock: 0, price: 0 });
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -32,6 +30,7 @@ export default function InventoryPage() {
   const { toast } = useToast();
 
   useEffect(() => {
+    if (!db) return;
     const unsub = onSnapshot(collection(db, "inventory"), 
       (snapshot) => {
         const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as InventoryItem));
@@ -46,10 +45,11 @@ export default function InventoryPage() {
       }
     );
     return () => unsub();
-  }, []);
+  }, [db]);
 
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!db) return;
     const id = Date.now().toString();
     const data = {
       itemName: newItem.itemName,
@@ -74,6 +74,7 @@ export default function InventoryPage() {
   };
 
   const handleUpdateStock = async (id: string, delta: number) => {
+    if (!db) return;
     const item = items.find(i => i.id === id);
     if (!item) return;
     const newStock = Math.max(0, item.currentStock + delta);
@@ -90,6 +91,7 @@ export default function InventoryPage() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!db) return;
     if (confirm("Are you sure you want to delete this item?")) {
       deleteDoc(doc(db, "inventory", id))
         .then(() => toast({ title: "Item Deleted" }))
@@ -114,7 +116,7 @@ export default function InventoryPage() {
   };
 
   const saveEdit = async () => {
-    if (!editingId) return;
+    if (!db || !editingId) return;
     updateDoc(doc(db, "inventory", editingId), editValues)
       .then(() => {
         setEditingId(null);
