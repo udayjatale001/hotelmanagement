@@ -13,6 +13,8 @@ import { Label } from "@/components/ui/label";
 import { Plus, Minus, Trash2, Edit2, Save, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 interface InventoryItem {
   id: string;
@@ -30,41 +32,74 @@ export default function InventoryPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, "inventory"), (snapshot) => {
-      const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as InventoryItem));
-      setItems(data);
-    });
+    const unsub = onSnapshot(collection(db, "inventory"), 
+      (snapshot) => {
+        const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as InventoryItem));
+        setItems(data);
+      },
+      async (err) => {
+        const permissionError = new FirestorePermissionError({
+          path: 'inventory',
+          operation: 'list',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      }
+    );
     return () => unsub();
   }, []);
 
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      const id = Date.now().toString();
-      await setDoc(doc(db, "inventory", id), {
-        itemName: newItem.itemName,
-        initialStock: newItem.initialStock,
-        currentStock: newItem.initialStock,
-        price: newItem.price
+    const id = Date.now().toString();
+    const data = {
+      itemName: newItem.itemName,
+      initialStock: newItem.initialStock,
+      currentStock: newItem.initialStock,
+      price: newItem.price
+    };
+
+    setDoc(doc(db, "inventory", id), data)
+      .then(() => {
+        setNewItem({ itemName: "", initialStock: 0, price: 0 });
+        toast({ title: "Item Added", description: `${data.itemName} added to inventory.` });
+      })
+      .catch(async (err) => {
+        const permissionError = new FirestorePermissionError({
+          path: `inventory/${id}`,
+          operation: 'create',
+          requestResourceData: data,
+        });
+        errorEmitter.emit('permission-error', permissionError);
       });
-      setNewItem({ itemName: "", initialStock: 0, price: 0 });
-      toast({ title: "Item Added", description: `${newItem.itemName} added to inventory.` });
-    } catch (err) {
-      toast({ title: "Error", description: "Failed to add item.", variant: "destructive" });
-    }
   };
 
   const handleUpdateStock = async (id: string, delta: number) => {
     const item = items.find(i => i.id === id);
     if (!item) return;
     const newStock = Math.max(0, item.currentStock + delta);
-    await updateDoc(doc(db, "inventory", id), { currentStock: newStock });
+    
+    updateDoc(doc(db, "inventory", id), { currentStock: newStock })
+      .catch(async (err) => {
+        const permissionError = new FirestorePermissionError({
+          path: `inventory/${id}`,
+          operation: 'update',
+          requestResourceData: { currentStock: newStock },
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
   };
 
   const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to delete this item?")) {
-      await deleteDoc(doc(db, "inventory", id));
-      toast({ title: "Item Deleted" });
+      deleteDoc(doc(db, "inventory", id))
+        .then(() => toast({ title: "Item Deleted" }))
+        .catch(async (err) => {
+          const permissionError = new FirestorePermissionError({
+            path: `inventory/${id}`,
+            operation: 'delete',
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        });
     }
   };
 
@@ -80,16 +115,26 @@ export default function InventoryPage() {
 
   const saveEdit = async () => {
     if (!editingId) return;
-    await updateDoc(doc(db, "inventory", editingId), editValues);
-    setEditingId(null);
-    toast({ title: "Item Updated" });
+    updateDoc(doc(db, "inventory", editingId), editValues)
+      .then(() => {
+        setEditingId(null);
+        toast({ title: "Item Updated" });
+      })
+      .catch(async (err) => {
+        const permissionError = new FirestorePermissionError({
+          path: `inventory/${editingId}`,
+          operation: 'update',
+          requestResourceData: editValues,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
   };
 
   return (
     <AppLayout>
       <div className="space-y-8">
         <div className="flex flex-col md:flex-row gap-8">
-          <Card className="w-full md:w-1/3 h-fit">
+          <Card className="w-full md:w-1/3 h-fit shadow-md">
             <CardHeader>
               <CardTitle>Add New Item</CardTitle>
             </CardHeader>
@@ -130,7 +175,7 @@ export default function InventoryPage() {
             </CardContent>
           </Card>
 
-          <Card className="flex-1">
+          <Card className="flex-1 shadow-md">
             <CardHeader>
               <CardTitle>Inventory List</CardTitle>
             </CardHeader>
@@ -157,32 +202,32 @@ export default function InventoryPage() {
                           <Button 
                             variant="outline" 
                             size="icon" 
-                            className="h-6 w-6"
+                            className="h-8 w-8"
                             onClick={() => handleUpdateStock(item.id, -1)}
                           >
-                            <Minus className="h-3 w-3" />
+                            <Minus className="h-4 w-4" />
                           </Button>
                           {editingId === item.id ? (
-                            <Input type="number" className="w-16 h-8" value={editValues.currentStock} onChange={e => setEditValues({...editValues, currentStock: Number(e.target.value)})} />
+                            <Input type="number" className="w-20 h-9" value={editValues.currentStock} onChange={e => setEditValues({...editValues, currentStock: Number(e.target.value)})} />
                           ) : (
                             <span className={cn(
-                              "font-bold",
+                              "font-bold text-lg w-10 text-center",
                               item.currentStock < 10 ? "text-destructive" : "text-primary"
                             )}>{item.currentStock}</span>
                           )}
                           <Button 
                             variant="outline" 
                             size="icon" 
-                            className="h-6 w-6"
+                            className="h-8 w-8"
                             onClick={() => handleUpdateStock(item.id, 1)}
                           >
-                            <Plus className="h-3 w-3" />
+                            <Plus className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>
                       <TableCell>
                         {editingId === item.id ? (
-                          <Input type="number" step="0.01" className="w-20 h-8" value={editValues.price} onChange={e => setEditValues({...editValues, price: Number(e.target.value)})} />
+                          <Input type="number" step="0.01" className="w-24 h-9" value={editValues.price} onChange={e => setEditValues({...editValues, price: Number(e.target.value)})} />
                         ) : `$${item.price.toFixed(2)}`}
                       </TableCell>
                       <TableCell className="text-right">
@@ -204,8 +249,8 @@ export default function InventoryPage() {
                   ))}
                   {items.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                        No items in inventory. Add one above.
+                      <TableCell colSpan={4} className="text-center py-12 text-muted-foreground">
+                        No items in inventory. Add one to the left.
                       </TableCell>
                     </TableRow>
                   )}

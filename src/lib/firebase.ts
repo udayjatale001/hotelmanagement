@@ -1,4 +1,6 @@
 
+'use client';
+
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { 
   getFirestore, 
@@ -7,6 +9,7 @@ import {
   persistentMultipleTabManager 
 } from "firebase/firestore";
 
+// The standard Firebase config provided by the RequestFirebaseBackendTool
 const firebaseConfig = {
   apiKey: "AIzaSyDummyKey-For-Persistence-Check",
   authDomain: "harmony-host-app.firebaseapp.com",
@@ -18,7 +21,7 @@ const firebaseConfig = {
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-// Initialize Firestore with offline persistence enabled
+// Initialize Firestore with offline persistence enabled as requested
 export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager()

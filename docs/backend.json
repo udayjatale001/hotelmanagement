@@ -1,0 +1,72 @@
+
+{
+  "entities": {
+    "Token": {
+      "title": "Token",
+      "description": "A food token generated for a specific item.",
+      "type": "object",
+      "properties": {
+        "itemName": { "type": "string" },
+        "tokenId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "adminEmail": { "type": "string" },
+        "price": { "type": "number" },
+        "status": { "type": "string", "enum": ["generated", "used"] }
+      },
+      "required": ["itemName", "tokenId", "timestamp", "adminEmail"]
+    },
+    "InventoryItem": {
+      "title": "Inventory Item",
+      "description": "An item in the hotel inventory with stock levels.",
+      "type": "object",
+      "properties": {
+        "itemName": { "type": "string" },
+        "initialStock": { "type": "number" },
+        "currentStock": { "type": "number" },
+        "price": { "type": "number" }
+      },
+      "required": ["itemName", "initialStock", "currentStock", "price"]
+    },
+    "Sale": {
+      "title": "Sale",
+      "description": "A finalized bill for a table.",
+      "type": "object",
+      "properties": {
+        "totalAmount": { "type": "number" },
+        "itemsList": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "itemName": { "type": "string" },
+              "qty": { "type": "number" },
+              "price": { "type": "number" }
+            }
+          }
+        },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "adminEmail": { "type": "string" },
+        "tableNumber": { "type": "string" },
+        "note": { "type": "string" }
+      },
+      "required": ["totalAmount", "itemsList", "timestamp", "adminEmail", "tableNumber"]
+    }
+  },
+  "auth": {
+    "providers": ["password"]
+  },
+  "firestore": {
+    "/tokens/{tokenId}": {
+      "schema": "Token",
+      "description": "Collection of generated food tokens."
+    },
+    "/inventory/{itemId}": {
+      "schema": "InventoryItem",
+      "description": "Collection of inventory items."
+    },
+    "/sales/{saleId}": {
+      "schema": "Sale",
+      "description": "Collection of finalized bills."
+    }
+  }
+}

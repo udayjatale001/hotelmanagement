@@ -17,6 +17,8 @@ import { Plus, Trash2, Sparkles, Receipt, Printer } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/lib/auth-store";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 export default function BillingPage() {
   const [inventory, setInventory] = useState<any[]>([]);
@@ -30,9 +32,18 @@ export default function BillingPage() {
   const { userEmail } = useAuth();
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, "inventory"), (snapshot) => {
-      setInventory(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
+    const unsub = onSnapshot(collection(db, "inventory"), 
+      (snapshot) => {
+        setInventory(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+      },
+      async (err) => {
+        const permissionError = new FirestorePermissionError({
+          path: 'inventory',
+          operation: 'list',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      }
+    );
     return () => unsub();
   }, []);
 
@@ -80,41 +91,55 @@ export default function BillingPage() {
   };
 
   const handleFinalizeBill = async () => {
-    try {
-      // 1. Create sale record in 'sales' collection
-      await addDoc(collection(db, "sales"), {
-        tableNumber,
-        itemsList: selectedItems.map(i => ({ itemName: i.item.itemName, qty: i.qty, price: i.item.price })),
-        totalAmount,
-        timestamp: serverTimestamp(),
-        adminEmail: userEmail,
-        note: aiNote
-      });
+    const saleData = {
+      tableNumber,
+      itemsList: selectedItems.map(i => ({ itemName: i.item.itemName, qty: i.qty, price: i.item.price })),
+      totalAmount,
+      timestamp: serverTimestamp(),
+      adminEmail: userEmail,
+      note: aiNote
+    };
 
-      // 2. Automatically deduct from inventory
-      for (const entry of selectedItems) {
-        const itemRef = doc(db, "inventory", entry.item.id);
-        await updateDoc(itemRef, {
-          currentStock: increment(-entry.qty)
+    // 1. Create sale record in 'sales' collection
+    addDoc(collection(db, "sales"), saleData)
+      .then(() => {
+        // 2. Automatically deduct from inventory (Logic connected to Firebase)
+        for (const entry of selectedItems) {
+          const itemRef = doc(db, "inventory", entry.item.id);
+          updateDoc(itemRef, {
+            currentStock: increment(-entry.qty)
+          }).catch(async (err) => {
+            const permissionError = new FirestorePermissionError({
+              path: `inventory/${entry.item.id}`,
+              operation: 'update',
+              requestResourceData: { currentStock: 'decrement' },
+            });
+            errorEmitter.emit('permission-error', permissionError);
+          });
+        }
+
+        toast({ title: "Bill Finalized", description: "Transaction saved and inventory updated." });
+        
+        // Reset state
+        setTableNumber("");
+        setSelectedItems([]);
+        setAiNote("");
+      })
+      .catch(async (err) => {
+        const permissionError = new FirestorePermissionError({
+          path: 'sales',
+          operation: 'create',
+          requestResourceData: saleData,
         });
-      }
-
-      toast({ title: "Bill Finalized", description: "Transaction saved and inventory updated." });
-      
-      // Reset
-      setTableNumber("");
-      setSelectedItems([]);
-      setAiNote("");
-    } catch (err) {
-      toast({ title: "Error", description: "Failed to finalize bill.", variant: "destructive" });
-    }
+        errorEmitter.emit('permission-error', permissionError);
+      });
   };
 
   return (
     <AppLayout>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
-          <Card>
+          <Card className="shadow-md">
             <CardHeader>
               <CardTitle>Order Details</CardTitle>
             </CardHeader>
@@ -126,10 +151,11 @@ export default function BillingPage() {
                   value={tableNumber} 
                   onChange={(e) => setTableNumber(e.target.value)} 
                   placeholder="e.g. Table 01"
+                  className="max-w-xs"
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border rounded-lg bg-secondary/20">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-5 border rounded-xl bg-secondary/10">
                 <div className="md:col-span-2 space-y-2">
                   <Label>Select Item</Label>
                   <Select onValueChange={setCurrentSelection} value={currentSelection || undefined}>
@@ -154,46 +180,48 @@ export default function BillingPage() {
                       value={currentQty} 
                       onChange={(e) => setCurrentQty(Number(e.target.value))} 
                     />
-                    <Button onClick={addItemToBill} size="icon"><Plus className="h-4 w-4" /></Button>
+                    <Button onClick={addItemToBill} size="icon" className="shrink-0"><Plus className="h-4 w-4" /></Button>
                   </div>
                 </div>
               </div>
 
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Item</TableHead>
-                    <TableHead>Qty</TableHead>
-                    <TableHead>Price</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {selectedItems.map((entry, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell>{entry.item.itemName}</TableCell>
-                      <TableCell>{entry.qty}</TableCell>
-                      <TableCell>${entry.item.price.toFixed(2)}</TableCell>
-                      <TableCell>${(entry.item.price * entry.qty).toFixed(2)}</TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="icon" onClick={() => removeItem(idx)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {selectedItems.length === 0 && (
+              <div className="rounded-md border overflow-hidden">
+                <Table>
+                  <TableHeader className="bg-muted/50">
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">Add items to the bill.</TableCell>
+                      <TableHead>Item</TableHead>
+                      <TableHead>Qty</TableHead>
+                      <TableHead>Price</TableHead>
+                      <TableHead>Total</TableHead>
+                      <TableHead></TableHead>
                     </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {selectedItems.map((entry, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell className="font-medium">{entry.item.itemName}</TableCell>
+                        <TableCell>{entry.qty}</TableCell>
+                        <TableCell>${entry.item.price.toFixed(2)}</TableCell>
+                        <TableCell>${(entry.item.price * entry.qty).toFixed(2)}</TableCell>
+                        <TableCell>
+                          <Button variant="ghost" size="icon" onClick={() => removeItem(idx)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {selectedItems.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">Add items from the menu above.</TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="shadow-md">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-accent" /> Personalized Table Note
@@ -203,8 +231,16 @@ export default function BillingPage() {
                 size="sm" 
                 onClick={handleGenerateAINote}
                 disabled={isGeneratingNote || !tableNumber || selectedItems.length === 0}
+                className="gap-2"
               >
-                {isGeneratingNote ? "Thinking..." : "Generate with AI"}
+                {isGeneratingNote ? (
+                  <>Thinking...</>
+                ) : (
+                  <>
+                    <Sparkles className="h-3 w-3" />
+                    Generate AI Note
+                  </>
+                )}
               </Button>
             </CardHeader>
             <CardContent>
@@ -213,13 +249,14 @@ export default function BillingPage() {
                 value={aiNote}
                 onChange={(e) => setAiNote(e.target.value)}
                 rows={3}
+                className="resize-none"
               />
             </CardContent>
           </Card>
         </div>
 
         <div className="space-y-6">
-          <Card className="border-primary border-t-4">
+          <Card className="border-primary border-t-4 shadow-lg sticky top-8">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Receipt className="h-5 w-5" /> Order Summary
@@ -240,15 +277,15 @@ export default function BillingPage() {
                 <span className="text-3xl font-headline font-bold text-primary">${totalAmount.toFixed(2)}</span>
               </div>
             </CardContent>
-            <CardFooter className="flex flex-col gap-2">
+            <CardFooter className="flex flex-col gap-3">
               <Button 
-                className="w-full h-12 text-lg font-bold" 
+                className="w-full h-12 text-lg font-bold shadow-md" 
                 disabled={selectedItems.length === 0}
                 onClick={handleFinalizeBill}
               >
                 Finalize & Save
               </Button>
-              <Button variant="outline" className="w-full gap-2">
+              <Button variant="outline" className="w-full gap-2 border-dashed">
                 <Printer className="h-4 w-4" /> Print Preview
               </Button>
             </CardFooter>
