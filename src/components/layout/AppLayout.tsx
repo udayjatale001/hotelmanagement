@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect } from "react";
@@ -10,7 +9,8 @@ import {
   Package, 
   Receipt, 
   LogOut,
-  Menu
+  Menu,
+  Database
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ const menuItems = [
   { name: "Food Tokens", href: "/tokens", icon: Ticket },
   { name: "Inventory", href: "/inventory", icon: Package },
   { name: "Billing", href: "/billing", icon: Receipt },
+  { name: "Records", href: "/records", icon: Database },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {

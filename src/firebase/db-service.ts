@@ -10,6 +10,7 @@ import {
   addDoc, 
   doc, 
   updateDoc, 
+  deleteDoc,
   increment, 
   serverTimestamp 
 } from 'firebase/firestore';
@@ -35,6 +36,21 @@ export async function saveToken(db: Firestore, item: any, tokenId: string, admin
         path: 'tokens',
         operation: 'create',
         requestResourceData: data,
+      }));
+      throw err;
+    });
+}
+
+/**
+ * Deletes a token from the 'tokens' collection.
+ */
+export async function deleteToken(db: Firestore, id: string) {
+  const ref = doc(db, "tokens", id);
+  return deleteDoc(ref)
+    .catch(async (err) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: `tokens/${id}`,
+        operation: 'delete',
       }));
       throw err;
     });
@@ -72,6 +88,21 @@ export async function saveBill(db: Firestore, details: any) {
         path: 'sales',
         operation: 'create',
         requestResourceData: data,
+      }));
+      throw err;
+    });
+}
+
+/**
+ * Deletes a sale record from the 'sales' collection.
+ */
+export async function deleteSale(db: Firestore, id: string) {
+  const ref = doc(db, "sales", id);
+  return deleteDoc(ref)
+    .catch(async (err) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: `sales/${id}`,
+        operation: 'delete',
       }));
       throw err;
     });
