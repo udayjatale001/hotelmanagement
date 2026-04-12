@@ -30,8 +30,9 @@ export async function saveToken(db: Firestore, item: any, tokenId: string, admin
   };
 
   return addDoc(collection(db, "tokens"), data)
-    .then(() => {
-      console.log("Data Saved! (Token)");
+    .then((docRef) => {
+      console.log("Data Saved!");
+      return docRef;
     })
     .catch(async (err) => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
@@ -70,7 +71,7 @@ export async function updateStock(db: Firestore, itemId: string, quantityToSubtr
     currentStock: increment(-quantityToSubtract)
   })
   .then(() => {
-    console.log("Data Saved! (Inventory Update)");
+    console.log("Data Saved!");
   })
   .catch(async (err) => {
     errorEmitter.emit('permission-error', new FirestorePermissionError({
@@ -92,11 +93,13 @@ export async function saveBill(db: Firestore, details: any) {
     tableNumber: details.tableNumber,
     adminEmail: details.adminEmail,
     timestamp: serverTimestamp(),
+    note: details.note || ""
   };
 
   return addDoc(collection(db, "sales"), data)
-    .then(() => {
-      console.log("Data Saved! (Sale Bill)");
+    .then((docRef) => {
+      console.log("Data Saved!");
+      return docRef;
     })
     .catch(async (err) => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
