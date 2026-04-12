@@ -56,7 +56,7 @@ export default function RecordsPage() {
 
   const handleDelete = async (col: string, id: string) => {
     if (!db) return;
-    if (window.confirm("Are you sure you want to delete this?")) {
+    if (window.confirm("Are you sure you want to delete this record?")) {
       deleteRecord(db, col, id)
         .then(() => toast({ title: "Record Deleted" }))
         .catch(() => {});
@@ -153,9 +153,9 @@ export default function RecordsPage() {
                     {sales.map((sale) => (
                       <TableRow key={sale.id}>
                         <TableCell className="font-bold">{sale.tableNumber || 'N/A'}</TableCell>
-                        <TableCell className="font-black text-primary">₹{(sale.total || sale.totalAmount || 0).toFixed(2)}</TableCell>
+                        <TableCell className="font-black text-primary">${(sale.totalAmount || 0).toFixed(2)}</TableCell>
                         <TableCell className="max-w-[200px] truncate text-xs text-muted-foreground">
-                          {sale.items || sale.itemsList?.map((i: any) => `${i.itemName}`).join(", ")}
+                          {sale.itemsList?.map((i: any) => `${i.itemName}`).join(", ") || sale.items}
                         </TableCell>
                         <TableCell className="text-muted-foreground text-xs">
                           {sale.timestamp?.toDate ? format(sale.timestamp.toDate(), "PPpp") : "Syncing..."}

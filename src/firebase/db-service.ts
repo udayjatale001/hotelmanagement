@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * @fileOverview Modular Firestore database functions with success logging.
+ * @fileOverview Modular Firestore database functions for HarmonyHost.
  */
 
 import { 
@@ -11,6 +11,7 @@ import {
   doc, 
   updateDoc, 
   deleteDoc,
+  setDoc,
   increment, 
   serverTimestamp 
 } from 'firebase/firestore';
@@ -26,6 +27,7 @@ export async function saveToken(db: Firestore, item: any, tokenId: string, admin
     tokenId,
     timestamp: serverTimestamp(),
     adminEmail: adminEmail,
+    price: item.price || 0,
     status: "generated"
   };
 
@@ -45,25 +47,25 @@ export async function saveToken(db: Firestore, item: any, tokenId: string, admin
 }
 
 /**
- * Deletes a record from a specific collection ('tokens' or 'sales').
+ * Adds or updates an item in the 'inventory' collection.
  */
-export async function deleteRecord(db: Firestore, col: string, id: string) {
-  const ref = doc(db, col, id);
-  return deleteDoc(ref)
+export async function saveInventoryItem(db: Firestore, id: string, data: any) {
+  return setDoc(doc(db, "inventory", id), data)
     .then(() => {
-      console.log("Data Deleted!");
+      console.log("Data Saved!");
     })
     .catch(async (err) => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: `${col}/${id}`,
-        operation: 'delete',
+        path: `inventory/${id}`,
+        operation: 'write',
+        requestResourceData: data,
       }));
       throw err;
     });
 }
 
 /**
- * Decrements stock in the 'inventory' collection using updateDoc.
+ * Decrements stock in the 'inventory' collection.
  */
 export async function updateStock(db: Firestore, itemId: string, quantityToSubtract: number) {
   const ref = doc(db, "inventory", itemId);
@@ -84,14 +86,32 @@ export async function updateStock(db: Firestore, itemId: string, quantityToSubtr
 }
 
 /**
+ * Directly updates an item's fields in inventory.
+ */
+export async function updateInventoryItem(db: Firestore, id: string, data: any) {
+  return updateDoc(doc(db, "inventory", id), data)
+    .then(() => {
+      console.log("Data Saved!");
+    })
+    .catch(async (err) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: `inventory/${id}`,
+        operation: 'update',
+        requestResourceData: data,
+      }));
+      throw err;
+    });
+}
+
+/**
  * Stores a finalized bill in the 'sales' collection.
  */
 export async function saveBill(db: Firestore, details: any) {
   const data = {
-    items: details.items || details.itemsList?.map((i: any) => i.itemName).join(", "),
-    total: details.total || details.totalAmount,
-    tableNumber: details.tableNumber,
-    adminEmail: details.adminEmail,
+    itemsList: details.itemsList || [],
+    totalAmount: details.totalAmount || details.total || 0,
+    tableNumber: details.tableNumber || "N/A",
+    adminEmail: details.adminEmail || "suyash001@gmail.com",
     timestamp: serverTimestamp(),
     note: details.note || ""
   };
@@ -106,6 +126,24 @@ export async function saveBill(db: Firestore, details: any) {
         path: 'sales',
         operation: 'create',
         requestResourceData: data,
+      }));
+      throw err;
+    });
+}
+
+/**
+ * Deletes a record from a specific collection ('tokens' or 'sales' or 'inventory').
+ */
+export async function deleteRecord(db: Firestore, col: string, id: string) {
+  const ref = doc(db, col, id);
+  return deleteDoc(ref)
+    .then(() => {
+      console.log("Data Deleted!");
+    })
+    .catch(async (err) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: `${col}/${id}`,
+        operation: 'delete',
       }));
       throw err;
     });

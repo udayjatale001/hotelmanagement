@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import AppLayout from "@/components/layout/AppLayout";
-import { collection, onSnapshot, doc, updateDoc, setDoc, deleteDoc } from "firebase/firestore";
+import { collection, onSnapshot } from "firebase/firestore";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Plus, Minus, Trash2, Edit2, Save, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { errorEmitter, FirestorePermissionError, useFirebase } from "@/firebase";
+import { saveInventoryItem, updateStock, updateInventoryItem, deleteRecord } from "@/firebase/db-service";
 
 interface InventoryItem {
   id: string;
@@ -58,50 +59,25 @@ export default function InventoryPage() {
       price: newItem.price
     };
 
-    setDoc(doc(db, "inventory", id), data)
+    saveInventoryItem(db, id, data)
       .then(() => {
         setNewItem({ itemName: "", initialStock: 0, price: 0 });
         toast({ title: "Item Added", description: `${data.itemName} added to inventory.` });
       })
-      .catch(async (err) => {
-        const permissionError = new FirestorePermissionError({
-          path: `inventory/${id}`,
-          operation: 'create',
-          requestResourceData: data,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-      });
+      .catch(() => {});
   };
 
-  const handleUpdateStock = async (id: string, delta: number) => {
+  const handleUpdateStockQuick = async (id: string, delta: number) => {
     if (!db) return;
-    const item = items.find(i => i.id === id);
-    if (!item) return;
-    const newStock = Math.max(0, item.currentStock + delta);
-    
-    updateDoc(doc(db, "inventory", id), { currentStock: newStock })
-      .catch(async (err) => {
-        const permissionError = new FirestorePermissionError({
-          path: `inventory/${id}`,
-          operation: 'update',
-          requestResourceData: { currentStock: newStock },
-        });
-        errorEmitter.emit('permission-error', permissionError);
-      });
+    updateStock(db, id, -delta); // updateStock subtracts, so -delta to add delta
   };
 
   const handleDelete = async (id: string) => {
     if (!db) return;
     if (confirm("Are you sure you want to delete this item?")) {
-      deleteDoc(doc(db, "inventory", id))
+      deleteRecord(db, "inventory", id)
         .then(() => toast({ title: "Item Deleted" }))
-        .catch(async (err) => {
-          const permissionError = new FirestorePermissionError({
-            path: `inventory/${id}`,
-            operation: 'delete',
-          });
-          errorEmitter.emit('permission-error', permissionError);
-        });
+        .catch(() => {});
     }
   };
 
@@ -117,19 +93,12 @@ export default function InventoryPage() {
 
   const saveEdit = async () => {
     if (!db || !editingId) return;
-    updateDoc(doc(db, "inventory", editingId), editValues)
+    updateInventoryItem(db, editingId, editValues)
       .then(() => {
         setEditingId(null);
         toast({ title: "Item Updated" });
       })
-      .catch(async (err) => {
-        const permissionError = new FirestorePermissionError({
-          path: `inventory/${editingId}`,
-          operation: 'update',
-          requestResourceData: editValues,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-      });
+      .catch(() => {});
   };
 
   return (
@@ -205,7 +174,7 @@ export default function InventoryPage() {
                             variant="outline" 
                             size="icon" 
                             className="h-8 w-8"
-                            onClick={() => handleUpdateStock(item.id, -1)}
+                            onClick={() => handleUpdateStockQuick(item.id, -1)}
                           >
                             <Minus className="h-4 w-4" />
                           </Button>
@@ -221,7 +190,7 @@ export default function InventoryPage() {
                             variant="outline" 
                             size="icon" 
                             className="h-8 w-8"
-                            onClick={() => handleUpdateStock(item.id, 1)}
+                            onClick={() => handleUpdateStockQuick(item.id, 1)}
                           >
                             <Plus className="h-4 w-4" />
                           </Button>
