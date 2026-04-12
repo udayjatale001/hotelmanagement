@@ -14,6 +14,7 @@ import {
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { errorEmitter, FirestorePermissionError, useFirebase } from "@/firebase";
+import { cn } from "@/lib/utils";
 
 export default function Dashboard() {
   const { db } = useFirebase();
