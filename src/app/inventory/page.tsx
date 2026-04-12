@@ -3,28 +3,19 @@
 import React, { useEffect, useState } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import { collection, onSnapshot } from "firebase/firestore";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, Minus, Trash2, Edit2, Save, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { errorEmitter, FirestorePermissionError, useFirebase } from "@/firebase";
 import { saveInventoryItem, updateStock, updateInventoryItem, deleteRecord } from "@/firebase/db-service";
 
-interface InventoryItem {
-  id: string;
-  itemName: string;
-  initialStock: number;
-  currentStock: number;
-  price: number;
-}
-
 export default function InventoryPage() {
   const { db } = useFirebase();
-  const [items, setItems] = useState<InventoryItem[]>([]);
+  const [items, setItems] = useState<any[]>([]);
   const [newItem, setNewItem] = useState({ itemName: "", initialStock: 0, price: 0 });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValues, setEditValues] = useState({ itemName: "", initialStock: 0, currentStock: 0, price: 0 });
@@ -33,17 +24,8 @@ export default function InventoryPage() {
   useEffect(() => {
     if (!db) return;
     const unsub = onSnapshot(collection(db, "inventory"), 
-      (snapshot) => {
-        const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as InventoryItem));
-        setItems(data);
-      },
-      async (err) => {
-        const permissionError = new FirestorePermissionError({
-          path: 'inventory',
-          operation: 'list',
-        });
-        errorEmitter.emit('permission-error', permissionError);
-      }
+      (snapshot) => setItems(snapshot.docs.map(d => ({ id: d.id, ...d.data() }))),
+      async () => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'inventory', operation: 'list' }))
     );
     return () => unsub();
   }, [db]);
@@ -51,185 +33,59 @@ export default function InventoryPage() {
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!db) return;
-    const id = Date.now().toString();
-    const data = {
-      itemName: newItem.itemName,
-      initialStock: newItem.initialStock,
-      currentStock: newItem.initialStock,
-      price: newItem.price
-    };
-
-    saveInventoryItem(db, id, data)
+    saveInventoryItem(db, Date.now().toString(), { ...newItem, currentStock: newItem.initialStock })
       .then(() => {
         setNewItem({ itemName: "", initialStock: 0, price: 0 });
-        toast({ title: "Item Added", description: `${data.itemName} added to inventory.` });
-      })
-      .catch(() => {});
+        toast({ title: "Item Added" });
+      });
   };
 
-  const handleUpdateStockQuick = async (id: string, delta: number) => {
-    if (!db) return;
-    updateStock(db, id, -delta); // updateStock subtracts, so -delta to add delta
-  };
+  const handleUpdateStockQuick = (id: string, delta: number) => updateStock(db, id, -delta);
 
-  const handleDelete = async (id: string) => {
-    if (!db) return;
-    if (confirm("Are you sure you want to delete this item?")) {
-      deleteRecord(db, "inventory", id)
-        .then(() => toast({ title: "Item Deleted" }))
-        .catch(() => {});
-    }
-  };
-
-  const startEdit = (item: InventoryItem) => {
+  const startEdit = (item: any) => {
     setEditingId(item.id);
-    setEditValues({ 
-      itemName: item.itemName, 
-      initialStock: item.initialStock, 
-      currentStock: item.currentStock,
-      price: item.price 
-    });
-  };
-
-  const saveEdit = async () => {
-    if (!db || !editingId) return;
-    updateInventoryItem(db, editingId, editValues)
-      .then(() => {
-        setEditingId(null);
-        toast({ title: "Item Updated" });
-      })
-      .catch(() => {});
+    setEditValues({ itemName: item.itemName, initialStock: item.initialStock, currentStock: item.currentStock, price: item.price });
   };
 
   return (
     <AppLayout>
-      <div className="space-y-8">
-        <div className="flex flex-col md:flex-row gap-8">
-          <Card className="w-full md:w-1/3 h-fit shadow-md">
-            <CardHeader>
-              <CardTitle>Add New Item</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleAddItem} className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Item Name</Label>
-                  <Input 
-                    value={newItem.itemName} 
-                    onChange={(e) => setNewItem({...newItem, itemName: e.target.value})}
-                    placeholder="e.g. Bisleri 1L"
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Initial Stock</Label>
-                    <Input 
-                      type="number"
-                      value={newItem.initialStock} 
-                      onChange={(e) => setNewItem({...newItem, initialStock: Number(e.target.value)})}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Price ($)</Label>
-                    <Input 
-                      type="number"
-                      step="0.01"
-                      value={newItem.price} 
-                      onChange={(e) => setNewItem({...newItem, price: Number(e.target.value)})}
-                      required
-                    />
-                  </div>
-                </div>
-                <Button type="submit" className="w-full">Add to Stock</Button>
-              </form>
-            </CardContent>
-          </Card>
+      <div className="flex flex-col gap-6">
+        <Card className="border-none shadow-sm">
+          <CardHeader className="p-4 pb-0"><CardTitle className="text-sm font-bold">New Inventory Item</CardTitle></CardHeader>
+          <CardContent className="p-4">
+            <form onSubmit={handleAddItem} className="space-y-4">
+              <Input placeholder="Item Name" value={newItem.itemName} onChange={e => setNewItem({...newItem, itemName: e.target.value})} className="h-12" required />
+              <div className="flex gap-2">
+                <Input type="number" placeholder="Stock" value={newItem.initialStock} onChange={e => setNewItem({...newItem, initialStock: Number(e.target.value)})} className="h-12" required />
+                <Input type="number" placeholder="Price" step="0.01" value={newItem.price} onChange={e => setNewItem({...newItem, price: Number(e.target.value)})} className="h-12" required />
+              </div>
+              <Button type="submit" className="w-full font-bold h-12">ADD STOCK</Button>
+            </form>
+          </CardContent>
+        </Card>
 
-          <Card className="flex-1 shadow-md">
-            <CardHeader>
-              <CardTitle>Inventory List</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Item Name</TableHead>
-                    <TableHead>Stock Level</TableHead>
-                    <TableHead>Price</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">
-                        {editingId === item.id ? (
-                          <Input value={editValues.itemName} onChange={e => setEditValues({...editValues, itemName: e.target.value})} />
-                        ) : item.itemName}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="icon" 
-                            className="h-8 w-8"
-                            onClick={() => handleUpdateStockQuick(item.id, -1)}
-                          >
-                            <Minus className="h-4 w-4" />
-                          </Button>
-                          {editingId === item.id ? (
-                            <Input type="number" className="w-20 h-9" value={editValues.currentStock} onChange={e => setEditValues({...editValues, currentStock: Number(e.target.value)})} />
-                          ) : (
-                            <span className={cn(
-                              "font-bold text-lg w-10 text-center",
-                              item.currentStock < 10 ? "text-destructive" : "text-primary"
-                            )}>{item.currentStock}</span>
-                          )}
-                          <Button 
-                            variant="outline" 
-                            size="icon" 
-                            className="h-8 w-8"
-                            onClick={() => handleUpdateStockQuick(item.id, 1)}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {editingId === item.id ? (
-                          <Input type="number" step="0.01" className="w-24 h-9" value={editValues.price} onChange={e => setEditValues({...editValues, price: Number(e.target.value)})} />
-                        ) : `$${item.price.toFixed(2)}`}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          {editingId === item.id ? (
-                            <>
-                              <Button variant="ghost" size="icon" onClick={saveEdit}><Save className="h-4 w-4 text-green-600" /></Button>
-                              <Button variant="ghost" size="icon" onClick={() => setEditingId(null)}><X className="h-4 w-4 text-destructive" /></Button>
-                            </>
-                          ) : (
-                            <>
-                              <Button variant="ghost" size="icon" onClick={() => startEdit(item)}><Edit2 className="h-4 w-4" /></Button>
-                              <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                            </>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {items.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-12 text-muted-foreground">
-                        No items in inventory. Add one to the left.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </div>
+        <Card className="border-none shadow-sm overflow-hidden">
+          <CardHeader className="p-4 pb-2"><CardTitle className="text-sm font-bold">Stock Status</CardTitle></CardHeader>
+          <CardContent className="p-0">
+            <ScrollArea className="h-[400px]">
+              <div className="divide-y">
+                {items.map((item) => (
+                  <div key={item.id} className="p-4 flex justify-between items-center">
+                    <div className="space-y-1">
+                      <p className="font-bold text-sm">{item.itemName}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">${item.price}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleUpdateStockQuick(item.id, -1)}><Minus className="h-3 w-3" /></Button>
+                      <span className={`w-8 text-center font-bold text-xs ${item.currentStock < 10 ? 'text-destructive' : 'text-primary'}`}>{item.currentStock}</span>
+                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleUpdateStockQuick(item.id, 1)}><Plus className="h-3 w-3" /></Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
       </div>
     </AppLayout>
   );

@@ -15,10 +15,10 @@ import { errorEmitter, FirestorePermissionError, useFirebase } from "@/firebase"
 import { saveToken } from "@/firebase/db-service";
 
 const FOOD_ITEMS = [
-  { name: "Kachori", price: 1.50, color: "bg-orange-500", description: "Hot & Crispy Rajasthani Style" },
-  { name: "Samosa", price: 1.20, color: "bg-red-500", description: "Classic Spiced Potato Filling" },
-  { name: "Pohe", price: 2.00, color: "bg-yellow-500", description: "Indori Style with Sev" },
-  { name: "Dhosa", price: 3.50, color: "bg-green-500", description: "Crispy South Indian Delight" },
+  { name: "Kachori", price: 1.50, color: "bg-orange-500" },
+  { name: "Samosa", price: 1.20, color: "bg-red-500" },
+  { name: "Pohe", price: 2.00, color: "bg-yellow-500" },
+  { name: "Dhosa", price: 3.50, color: "bg-green-500" },
 ];
 
 export default function TokenPage() {
@@ -52,105 +52,63 @@ export default function TokenPage() {
     
     saveToken(db, item, tokenId, userEmail)
       .then(() => {
-        toast({
-          title: "Token Generated",
-          description: `Token: ${tokenId} for ${item.name}`,
-        });
+        toast({ title: "Token Generated", description: `${item.name} (${tokenId})` });
       })
-      .catch(() => {
-        // Error handled by global emitter in saveToken
-      })
-      .finally(() => {
-        setIsGenerating(null);
-      });
+      .finally(() => setIsGenerating(null));
   };
 
   return (
     <AppLayout>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-headline font-bold">Food Token Menu</h2>
-              <p className="text-muted-foreground">Select an item to generate an instant food token.</p>
-            </div>
-            <div className="p-2 bg-primary/5 rounded-full">
-              <Sparkles className="h-5 w-5 text-primary animate-pulse" />
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            {FOOD_ITEMS.map((item) => (
-              <Card key={item.name} className="group hover:shadow-xl transition-all duration-300 overflow-hidden border-none shadow-md bg-white">
-                <div className={cn("h-2 w-full", item.color)} />
-                <CardContent className="pt-6">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="p-4 bg-secondary/50 rounded-2xl group-hover:bg-primary/10 transition-colors">
-                      <Ticket className="h-7 w-7 text-primary" />
-                    </div>
-                    <div className="text-right">
-                      <span className="text-2xl font-bold text-primary">${item.price.toFixed(2)}</span>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Price</p>
-                    </div>
-                  </div>
-                  <h3 className="text-xl font-bold mb-1">{item.name}</h3>
-                  <p className="text-sm text-muted-foreground mb-6">{item.description}</p>
-                  <Button 
-                    className="w-full h-11 text-base font-semibold group-hover:shadow-lg transition-shadow" 
-                    onClick={() => handleGenerateToken(item)}
-                    disabled={isGenerating === item.name}
-                  >
-                    {isGenerating === item.name ? "Generating..." : "Generate Token"}
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+      <div className="flex flex-col gap-6">
+        <div className="grid grid-cols-2 gap-3">
+          {FOOD_ITEMS.map((item) => (
+            <Card key={item.name} className="border-none shadow-sm bg-white overflow-hidden">
+              <div className={cn("h-1.5 w-full", item.color)} />
+              <CardContent className="p-4 flex flex-col items-center gap-2">
+                <Ticket className="h-6 w-6 text-slate-300" />
+                <h3 className="font-bold text-sm">{item.name}</h3>
+                <span className="text-xs font-black text-primary">${item.price.toFixed(2)}</span>
+                <Button 
+                  size="sm"
+                  className="w-full h-10 font-bold text-[10px] mt-2" 
+                  onClick={() => handleGenerateToken(item)}
+                  disabled={isGenerating === item.name}
+                >
+                  {isGenerating === item.name ? "WAIT" : "ISSUE"}
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
-        <div className="space-y-6">
-          <Card className="h-full max-h-[700px] flex flex-col shadow-md border-none">
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <History className="h-5 w-5 text-primary" /> Recent Tokens
-              </CardTitle>
-              <span className="text-xs text-muted-foreground font-medium">Last 10</span>
-            </CardHeader>
-            <Separator />
-            <ScrollArea className="flex-1 p-4 bg-secondary/5">
-              <div className="space-y-4">
+        <Card className="border-none shadow-sm bg-white flex flex-col">
+          <CardHeader className="p-4 pb-2">
+            <CardTitle className="text-sm font-bold flex items-center gap-2">
+              <History className="h-4 w-4 text-primary" /> Last 10 Tokens
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <ScrollArea className="h-[300px]">
+              <div className="divide-y">
                 {recentTokens.map((token) => (
-                  <div key={token.id} className="p-5 rounded-xl bg-white border shadow-sm hover:border-primary/30 transition-colors space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-[10px] font-black text-primary px-3 py-1 bg-primary/10 rounded-full tracking-wider">{token.tokenId}</span>
-                      <span className="text-[10px] text-muted-foreground font-medium">
-                        {token.timestamp?.toDate ? token.timestamp.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "Pending..."}
-                      </span>
+                  <div key={token.id} className="p-4 flex justify-between items-center">
+                    <div className="space-y-1">
+                      <p className="font-bold text-xs uppercase">{token.itemName}</p>
+                      <p className="text-[10px] text-muted-foreground font-mono bg-slate-100 px-2 py-0.5 rounded-full inline-block">
+                        {token.tokenId}
+                      </p>
                     </div>
-                    <div className="flex justify-between items-end">
-                      <div>
-                        <p className="font-bold text-lg leading-none">{token.itemName}</p>
-                        <p className="text-[10px] text-muted-foreground mt-1 font-semibold">{token.adminEmail}</p>
-                      </div>
-                      <div className="flex gap-2">
-                         <Button variant="outline" size="icon" className="h-8 w-8 rounded-full"><Printer className="h-4 w-4" /></Button>
-                         <div className="h-8 w-8 bg-green-50 rounded-full flex items-center justify-center">
-                            <CheckCircle2 className="h-5 w-5 text-green-500" />
-                         </div>
-                      </div>
+                    <div className="flex gap-2">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400">
+                        <Printer className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 ))}
-                {recentTokens.length === 0 && (
-                  <div className="text-center py-20 opacity-30">
-                    <Ticket className="h-12 w-12 mx-auto mb-3" />
-                    <p className="text-sm font-bold">No tokens yet</p>
-                  </div>
-                )}
               </div>
             </ScrollArea>
-          </Card>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </AppLayout>
   );

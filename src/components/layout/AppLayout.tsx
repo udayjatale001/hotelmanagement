@@ -9,26 +9,25 @@ import {
   Package, 
   Receipt, 
   LogOut,
-  Menu,
-  Database
+  Database,
+  ArrowLeft
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-store";
 
 const menuItems = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Food Tokens", href: "/tokens", icon: Ticket },
-  { name: "Inventory", href: "/inventory", icon: Package },
-  { name: "Billing", href: "/billing", icon: Receipt },
-  { name: "Records", href: "/records", icon: Database },
+  { name: "Dash", href: "/", icon: LayoutDashboard },
+  { name: "Token", href: "/tokens", icon: Ticket },
+  { name: "Inv", href: "/inventory", icon: Package },
+  { name: "Bill", href: "/billing", icon: Receipt },
+  { name: "Rec", href: "/records", icon: Database },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { isAuthenticated, logout } = useAuth();
-  const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
 
   useEffect(() => {
     if (isAuthenticated === false) {
@@ -40,25 +39,43 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return null;
   }
 
+  const currentPage = menuItems.find(i => i.href === pathname);
+
   return (
-    <div className="flex h-screen bg-background overflow-hidden font-body">
-      {/* Sidebar */}
-      <aside 
-        className={cn(
-          "bg-white border-r border-border transition-all duration-300 flex flex-col",
-          isSidebarOpen ? "w-64" : "w-20"
-        )}
-      >
-        <div className="p-6 flex items-center justify-between">
-          {isSidebarOpen && (
-            <span className="font-headline font-bold text-xl text-primary tracking-tight">HarmonyHost</span>
-          )}
-          <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
-            <Menu className="h-5 w-5" />
+    <div className="min-h-screen bg-slate-100 font-body">
+      <div className="app-container">
+        {/* Header */}
+        <header className="h-16 bg-white border-b border-border flex items-center justify-between px-4 shrink-0 sticky top-0 z-50">
+          <div className="flex items-center gap-3">
+            {pathname !== "/" && (
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => router.back()}>
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            )}
+            <h1 className="text-base font-bold text-foreground truncate">
+              {currentPage?.name || "HarmonyHost"}
+            </h1>
+          </div>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="text-destructive h-8 w-8"
+            onClick={() => {
+              logout();
+              router.push("/login");
+            }}
+          >
+            <LogOut className="h-5 w-5" />
           </Button>
+        </header>
+
+        {/* Main Content Area */}
+        <div className="flex-1 overflow-y-auto bg-slate-50/50 safe-padding pb-24">
+          {children}
         </div>
 
-        <nav className="flex-1 px-3 space-y-1">
+        {/* Bottom Navigation */}
+        <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[500px] h-20 bg-white border-t border-border flex items-center justify-around px-2 z-50">
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
@@ -67,47 +84,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 key={item.name}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
+                  "flex flex-col items-center justify-center gap-1 transition-colors flex-1",
                   isActive 
-                    ? "bg-primary text-primary-foreground" 
-                    : "text-muted-foreground hover:bg-secondary hover:text-primary"
+                    ? "text-primary" 
+                    : "text-muted-foreground hover:text-primary"
                 )}
               >
-                <Icon className="h-5 w-5 shrink-0" />
-                {isSidebarOpen && <span>{item.name}</span>}
+                <div className={cn(
+                  "p-2 rounded-xl transition-all",
+                  isActive ? "bg-primary/10" : ""
+                )}>
+                  <Icon className="h-5 w-5" />
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-tighter">{item.name}</span>
               </Link>
             );
           })}
         </nav>
-
-        <div className="p-4 mt-auto border-t border-border">
-          <Button 
-            variant="ghost" 
-            className="w-full flex items-center justify-start gap-3 text-destructive hover:text-destructive hover:bg-destructive/10"
-            onClick={() => {
-              logout();
-              router.push("/login");
-            }}
-          >
-            <LogOut className="h-5 w-5" />
-            {isSidebarOpen && <span>Logout</span>}
-          </Button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-16 bg-white border-b border-border flex items-center px-8 shrink-0">
-          <h1 className="text-lg font-semibold text-foreground">
-            {menuItems.find(i => i.href === pathname)?.name || "HarmonyHost"}
-          </h1>
-        </header>
-        <div className="flex-1 overflow-auto p-8">
-          <div className="max-w-6xl mx-auto">
-            {children}
-          </div>
-        </div>
-      </main>
+      </div>
     </div>
   );
 }

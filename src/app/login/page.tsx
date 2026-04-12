@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from "react";
@@ -32,50 +31,55 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md shadow-xl border-t-4 border-t-primary">
-        <CardHeader className="space-y-1 text-center">
-          <div className="flex justify-center mb-4">
-            <div className="p-3 bg-primary/10 rounded-full">
-              <Hotel className="h-8 w-8 text-primary" />
+    <div className="min-h-screen bg-slate-100 flex items-center justify-center font-body">
+      <div className="app-container justify-center safe-padding">
+        <Card className="w-full shadow-lg border-none">
+          <CardHeader className="space-y-1 text-center">
+            <div className="flex justify-center mb-4">
+              <div className="p-3 bg-primary/10 rounded-full">
+                <Hotel className="h-10 w-10 text-primary" />
+              </div>
             </div>
-          </div>
-          <CardTitle className="text-2xl font-headline font-bold">Admin Login</CardTitle>
-          <CardDescription>
-            Enter your credentials to manage HarmonyHost
-          </CardDescription>
-        </CardHeader>
-        <form onSubmit={handleLogin}>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input 
-                id="email" 
-                type="email" 
-                placeholder="admin@harmonyhost.com" 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required 
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input 
-                id="password" 
-                type="password" 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required 
-              />
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button type="submit" className="w-full font-semibold">
-              Secure Access
-            </Button>
-          </CardFooter>
-        </form>
-      </Card>
+            <CardTitle className="text-xl font-bold">Admin Login</CardTitle>
+            <CardDescription className="text-xs">
+              Secure Access to HarmonyHost
+            </CardDescription>
+          </CardHeader>
+          <form onSubmit={handleLogin}>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Email</Label>
+                <Input 
+                  id="email" 
+                  type="email" 
+                  placeholder="admin@harmonyhost.com" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="h-12"
+                  required 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Password</Label>
+                <Input 
+                  id="password" 
+                  type="password" 
+                  placeholder="••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="h-12"
+                  required 
+                />
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button type="submit" className="w-full font-bold">
+                LOGIN
+              </Button>
+            </CardFooter>
+          </form>
+        </Card>
+      </div>
     </div>
   );
 }
