@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * @fileOverview Modular Firestore database functions for tokens, inventory, and sales.
+ * @fileOverview Modular Firestore database functions aligned with the provided logic.
  */
 
 import { 
@@ -19,14 +19,14 @@ import { FirestorePermissionError } from './errors';
 
 /**
  * Saves a food token to the 'tokens' collection.
+ * Matches logic: { itemName, timestamp, adminEmail }
  */
 export async function saveToken(db: Firestore, item: any, tokenId: string, adminEmail: string) {
   const data = {
     itemName: item.name || item.itemName,
-    price: item.price,
-    tokenId,
+    tokenId, // Unique ID as requested
     timestamp: serverTimestamp(),
-    adminEmail,
+    adminEmail: adminEmail,
     status: "generated"
   };
 
@@ -42,14 +42,15 @@ export async function saveToken(db: Firestore, item: any, tokenId: string, admin
 }
 
 /**
- * Deletes a token from the 'tokens' collection.
+ * Deletes a record from any collection.
+ * Matches logic: deleteDoc(doc(db, col, id))
  */
-export async function deleteToken(db: Firestore, id: string) {
-  const ref = doc(db, "tokens", id);
+export async function deleteRecord(db: Firestore, col: string, id: string) {
+  const ref = doc(db, col, id);
   return deleteDoc(ref)
     .catch(async (err) => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: `tokens/${id}`,
+        path: `${col}/${id}`,
         operation: 'delete',
       }));
       throw err;
@@ -58,6 +59,7 @@ export async function deleteToken(db: Firestore, id: string) {
 
 /**
  * Decrements stock in the 'inventory' collection.
+ * Matches logic: updateDoc(stockRef, { currentStock: increment(-1) })
  */
 export async function updateStock(db: Firestore, itemId: string, quantityToSubtract: number) {
   const ref = doc(db, "inventory", itemId);
@@ -75,10 +77,14 @@ export async function updateStock(db: Firestore, itemId: string, quantityToSubtr
 
 /**
  * Stores a finalized bill in the 'sales' collection.
+ * Matches logic: { items, total, timestamp }
  */
 export async function saveBill(db: Firestore, details: any) {
   const data = {
-    ...details,
+    items: details.items || details.itemsList?.map((i: any) => i.itemName).join(", "),
+    total: details.total || details.totalAmount,
+    tableNumber: details.tableNumber,
+    adminEmail: details.adminEmail,
     timestamp: serverTimestamp(),
   };
 
@@ -88,21 +94,6 @@ export async function saveBill(db: Firestore, details: any) {
         path: 'sales',
         operation: 'create',
         requestResourceData: data,
-      }));
-      throw err;
-    });
-}
-
-/**
- * Deletes a sale record from the 'sales' collection.
- */
-export async function deleteSale(db: Firestore, id: string) {
-  const ref = doc(db, "sales", id);
-  return deleteDoc(ref)
-    .catch(async (err) => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: `sales/${id}`,
-        operation: 'delete',
       }));
       throw err;
     });
