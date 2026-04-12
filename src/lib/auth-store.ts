@@ -6,13 +6,18 @@ import { useState, useEffect } from 'react';
 const ADMIN_EMAIL = 'suyash001@gmail.com';
 const ADMIN_PASS = '9981';
 
+/**
+ * Custom hook to manage authentication state with localStorage persistence.
+ */
 export function useAuth() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
 
   useEffect(() => {
+    // Check for existing session on mount
     const session = localStorage.getItem('harmony_auth');
     const email = localStorage.getItem('harmony_user_email');
+    
     if (session === 'true' && email) {
       setIsAuthenticated(true);
       setUserEmail(email);

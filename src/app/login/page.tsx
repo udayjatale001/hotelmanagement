@@ -1,21 +1,29 @@
+
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
-import { Hotel } from "lucide-react";
+import { Hotel, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function LoginPage() {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
-  const { login } = useAuth();
+  const { isAuthenticated, login } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
+
+  // Redirect to dashboard if already authenticated
+  useEffect(() => {
+    if (isAuthenticated === true) {
+      router.push("/");
+    }
+  }, [isAuthenticated, router]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,9 +38,18 @@ export default function LoginPage() {
     }
   };
 
+  // Prevent flash of login screen while checking session
+  if (isAuthenticated === null || isAuthenticated === true) {
+    return (
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-slate-100 flex items-center justify-center font-body">
-      <div className="app-container justify-center safe-padding">
+    <div className="min-h-screen bg-slate-100 flex items-center justify-center font-body p-4">
+      <div className="app-container justify-center w-full">
         <Card className="w-full shadow-lg border-none">
           <CardHeader className="space-y-1 text-center">
             <div className="flex justify-center mb-4">
@@ -73,7 +90,7 @@ export default function LoginPage() {
               </div>
             </CardContent>
             <CardFooter>
-              <Button type="submit" className="w-full font-bold">
+              <Button type="submit" className="w-full font-bold h-12">
                 LOGIN
               </Button>
             </CardFooter>

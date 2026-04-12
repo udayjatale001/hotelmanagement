@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect } from "react";
@@ -10,7 +11,8 @@ import {
   Receipt, 
   LogOut,
   Database,
-  ArrowLeft
+  ArrowLeft,
+  Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -36,7 +38,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [isAuthenticated, router]);
 
   if (isAuthenticated !== true) {
-    return null;
+    return (
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
   const currentPage = menuItems.find(i => i.href === pathname);
@@ -59,7 +65,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <Button 
             variant="ghost" 
             size="icon" 
-            className="text-destructive h-8 w-8"
+            className="text-destructive hover:bg-destructive/10 h-10 w-10 transition-colors"
             onClick={() => {
               logout();
               router.push("/login");
@@ -70,12 +76,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Main Content Area */}
-        <div className="flex-1 overflow-y-auto bg-slate-50/50 safe-padding pb-24">
+        <main className="flex-1 overflow-y-auto bg-slate-50/50 safe-padding pb-24">
           {children}
-        </div>
+        </main>
 
         {/* Bottom Navigation */}
-        <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[500px] h-20 bg-white border-t border-border flex items-center justify-around px-2 z-50">
+        <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[500px] h-20 bg-white border-t border-border flex items-center justify-around px-2 z-50 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
@@ -84,7 +90,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 key={item.name}
                 href={item.href}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1 transition-colors flex-1",
+                  "flex flex-col items-center justify-center gap-1 transition-colors flex-1 h-full",
                   isActive 
                     ? "text-primary" 
                     : "text-muted-foreground hover:text-primary"
