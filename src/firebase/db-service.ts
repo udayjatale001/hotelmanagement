@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * @fileOverview Modular Firestore database functions aligned with the provided logic.
+ * @fileOverview Modular Firestore database functions with success logging.
  */
 
 import { 
@@ -19,18 +19,20 @@ import { FirestorePermissionError } from './errors';
 
 /**
  * Saves a food token to the 'tokens' collection.
- * Matches logic: { itemName, timestamp, adminEmail }
  */
 export async function saveToken(db: Firestore, item: any, tokenId: string, adminEmail: string) {
   const data = {
     itemName: item.name || item.itemName,
-    tokenId, // Unique ID as requested
+    tokenId,
     timestamp: serverTimestamp(),
     adminEmail: adminEmail,
     status: "generated"
   };
 
   return addDoc(collection(db, "tokens"), data)
+    .then(() => {
+      console.log("Data Saved! (Token)");
+    })
     .catch(async (err) => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
         path: 'tokens',
@@ -42,12 +44,14 @@ export async function saveToken(db: Firestore, item: any, tokenId: string, admin
 }
 
 /**
- * Deletes a record from any collection.
- * Matches logic: deleteDoc(doc(db, col, id))
+ * Deletes a record from a specific collection ('tokens' or 'sales').
  */
 export async function deleteRecord(db: Firestore, col: string, id: string) {
   const ref = doc(db, col, id);
   return deleteDoc(ref)
+    .then(() => {
+      console.log("Data Deleted!");
+    })
     .catch(async (err) => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
         path: `${col}/${id}`,
@@ -58,14 +62,17 @@ export async function deleteRecord(db: Firestore, col: string, id: string) {
 }
 
 /**
- * Decrements stock in the 'inventory' collection.
- * Matches logic: updateDoc(stockRef, { currentStock: increment(-1) })
+ * Decrements stock in the 'inventory' collection using updateDoc.
  */
 export async function updateStock(db: Firestore, itemId: string, quantityToSubtract: number) {
   const ref = doc(db, "inventory", itemId);
   return updateDoc(ref, {
     currentStock: increment(-quantityToSubtract)
-  }).catch(async (err) => {
+  })
+  .then(() => {
+    console.log("Data Saved! (Inventory Update)");
+  })
+  .catch(async (err) => {
     errorEmitter.emit('permission-error', new FirestorePermissionError({
       path: `inventory/${itemId}`,
       operation: 'update',
@@ -77,7 +84,6 @@ export async function updateStock(db: Firestore, itemId: string, quantityToSubtr
 
 /**
  * Stores a finalized bill in the 'sales' collection.
- * Matches logic: { items, total, timestamp }
  */
 export async function saveBill(db: Firestore, details: any) {
   const data = {
@@ -89,6 +95,9 @@ export async function saveBill(db: Firestore, details: any) {
   };
 
   return addDoc(collection(db, "sales"), data)
+    .then(() => {
+      console.log("Data Saved! (Sale Bill)");
+    })
     .catch(async (err) => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
         path: 'sales',
